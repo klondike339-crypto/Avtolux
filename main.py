@@ -13,7 +13,8 @@ from aiogram.types import (Message, CallbackQuery, ReplyKeyboardMarkup, Keyboard
 
 TOKEN = os.environ["BOT_TOKEN"]
 ADMIN = int(os.getenv("ADMIN_ID", "0"))          # числовой Telegram ID владельца
-WEBAPP = os.getenv("WEBAPP_URL", "")             # https-адрес мини-приложения (необязательно)
+WEBAPP = os.getenv("WEBAPP_URL", "").strip()
+if not WEBAPP.startswith("https://"): WEBAPP = ""             # https-адрес мини-приложения (необязательно)
 PORT = int(os.getenv("PORT", "8080"))
 MID = json.loads(os.getenv("MASTER_IDS", "{}"))  # {"Роман": 123456789} — уведомления мастерам
 TZ = ZoneInfo(os.getenv("TZ_NAME", "Europe/Moscow"))

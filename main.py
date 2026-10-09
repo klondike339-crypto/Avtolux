@@ -110,49 +110,49 @@ class St(StatesGroup): q = State()
 class Rv(StatesGroup): txt = State()
 
 @r.message(CommandStart())
-async def start(m: Message, s: FSMContext):
-    await s.clear()
+async def start(m: Message, state: FSMContext):
+    await state.clear()
     await m.answer("Добро пожаловать в <b>Автолюкс</b>! 🚗\nМойка, шиномонтаж, автосервис и хранение шин. Выберите действие в меню.", reply_markup=menu())
 
 @r.message(Command("myid"))
 async def myid(m: Message): await m.answer(f"Ваш Telegram ID: <code>{m.from_user.id}</code>")
 
 @r.message(F.text == "📝 Записаться")
-async def book(m: Message, s: FSMContext):
-    await s.clear()
+async def book(m: Message, state: FSMContext):
+    await state.clear()
     await m.answer("Что вас интересует?", reply_markup=ik([[(v["t"], "c:" + k)] for k, v in CATS.items()]))
 
 @r.callback_query(F.data.startswith("c:"))
-async def cat(c: CallbackQuery, s: FSMContext):
+async def cat(c: CallbackQuery, state: FSMContext):
     k = c.data[2:]
-    await s.update_data(cat=k)
+    await state.update_data(cat=k)
     await c.message.edit_text("Выберите услугу:", reply_markup=ik([[(n, f"s:{i}")] for i, (n, _) in enumerate(CATS[k]["items"])]))
 
 @r.callback_query(F.data.startswith("s:"))
-async def svc(c: CallbackQuery, s: FSMContext):
-    k = (await s.get_data())["cat"]
-    await s.update_data(svc=CATS[k]["items"][int(c.data[2:])][0])
+async def svc(c: CallbackQuery, state: FSMContext):
+    k = (await state.get_data())["cat"]
+    await state.update_data(svc=CATS[k]["items"][int(c.data[2:])][0])
     await c.message.edit_text("Выберите мастера:", reply_markup=ik([[(x, "m:" + x)] for x in CATS[k]["masters"]] + [[("Любой свободный", "m:any")]]))
 
 @r.callback_query(F.data.startswith("m:"))
-async def mas(c: CallbackQuery, s: FSMContext):
-    await s.update_data(master=c.data[2:])
+async def mas(c: CallbackQuery, state: FSMContext):
+    await state.update_data(master=c.data[2:])
     t = today()
     await c.message.edit_text("Выберите дату:", reply_markup=ik(
         [[((t + timedelta(i)).strftime("%d.%m"), "d:" + (t + timedelta(i)).isoformat()) for i in range(j, j + 4)] for j in (0, 4)]))
 
 @r.callback_query(F.data.startswith("d:"))
-async def day(c: CallbackQuery, s: FSMContext):
-    d, dt = await s.get_data(), c.data[2:]
-    await s.update_data(d=dt)
+async def day(c: CallbackQuery, state: FSMContext):
+    d, dt = await state.get_data(), c.data[2:]
+    await state.update_data(d=dt)
     sl = slots(d["cat"], d["master"], dt)
     if not sl: return await c.answer("На эту дату нет свободного времени", show_alert=True)
     await c.message.edit_text(f"Время на {dm(dt)}:", reply_markup=ik([[(t, "t:" + t) for t in sl[i:i + 4]] for i in range(0, len(sl), 4)]))
 
 @r.callback_query(F.data.startswith("t:"))
-async def tm(c: CallbackQuery, s: FSMContext):
-    d, t = await s.get_data(), c.data[2:]
-    await s.clear()
+async def tm(c: CallbackQuery, state: FSMContext):
+    d, t = await state.get_data(), c.data[2:]
+    await state.clear()
     res = add(c.from_user.id, c.from_user.full_name, d["cat"], d["svc"], d["master"], d["d"], t)
     if not res: return await c.message.edit_text("Это время уже занято. Начните запись заново.")
     await c.message.edit_text("Готово ✅")
@@ -186,13 +186,13 @@ async def pr(c: CallbackQuery):
     await c.answer()
 
 @r.message(F.text == "🛞 Хранение шин")
-async def st(m: Message, s: FSMContext):
-    await s.set_state(St.q)
+async def st(m: Message, state: FSMContext):
+    await state.set_state(St.q)
     await m.answer(STORE + "\n\nНапишите одним сообщением марку авто, размер шин и удобную дату — передам администратору.")
 
 @r.message(F.text == "⭐ Отзыв")
-async def rv(m: Message, s: FSMContext):
-    await s.clear()
+async def rv(m: Message, state: FSMContext):
+    await state.clear()
     await m.answer("Оцените наш сервис:", reply_markup=stars())
 
 @r.message(F.text == "📍 Контакты")
@@ -217,15 +217,15 @@ async def cx(c: CallbackQuery):
     await tell(c.bot, ADMIN if c.from_user.id != ADMIN else x["uid"], f"❌ Запись #{i} ({dm(x['d'])} {x['t']}) отменена.")
 
 @r.callback_query(F.data.startswith("r:"))
-async def rs(c: CallbackQuery, s: FSMContext):
-    await s.set_state(Rv.txt)
-    await s.update_data(stars=int(c.data[2:]))
+async def rs(c: CallbackQuery, state: FSMContext):
+    await state.set_state(Rv.txt)
+    await state.update_data(stars=int(c.data[2:]))
     await c.message.edit_text("Спасибо! Напишите комментарий или отправьте /skip")
 
 @r.message(Rv.txt)
-async def rt(m: Message, s: FSMContext):
-    d = await s.get_data()
-    await s.clear()
+async def rt(m: Message, state: FSMContext):
+    d = await state.get_data()
+    await state.clear()
     txt = "" if m.text == "/skip" else (m.text or "")[:500]
     db.execute("insert into r(uid,name,stars,txt,ts) values(?,?,?,?,?)", (m.from_user.id, m.from_user.full_name, d["stars"], txt, now().isoformat()))
     db.commit()
@@ -233,8 +233,8 @@ async def rt(m: Message, s: FSMContext):
     await m.answer("Благодарим за отзыв! 🙏")
 
 @r.message(St.q)
-async def st2(m: Message, s: FSMContext):
-    await s.clear()
+async def st2(m: Message, state: FSMContext):
+    await state.clear()
     await tell(m.bot, ADMIN, f"🛞 Заявка на хранение от <a href='tg://user?id={m.from_user.id}'>{m.from_user.full_name}</a>:\n{m.text or '—'}")
     await m.answer("Заявка принята, с вами свяжутся ✅")
 

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Автолюкс</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#e8eff3;--card:#fff;--ink:#0f1f2b;--mu:#5d7080;--ln:#d3dee6;--ac:#1263e6;--sg:#ffc933}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 16px 110px}
+header{margin:0 -16px 18px;padding:28px 16px 22px;background:var(--ink);color:#fff;border-radius:0 0 26px 26px}
+h1{margin:0;font-size:32px;font-weight:800;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:#a9bccb;font-size:14px}
+h2{font-size:15px;font-weight:700;color:var(--mu);margin:24px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.c,.it,.ch{background:var(--card);border:2px solid transparent;transition:border-color .15s,background .15s}
+.c{border-radius:18px;padding:16px 6px;text-align:center;font-weight:700;font-size:14px}
+.c span{display:block;font-size:30px;margin-bottom:6px}
+.it{display:flex;justify-content:space-between;align-items:center;gap:12px;border-radius:14px;padding:13px 14px;margin-bottom:8px}
+.it i{font-style:normal;font-weight:700;font-size:13px;background:var(--sg);color:var(--ink);border-radius:8px;padding:3px 8px;text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.ch{border-radius:12px;padding:10px 14px;font-weight:600}
+.on{border-color:var(--ac)!important;background:#eaf1ff!important}
+.sub{color:var(--mu)}
+</style></head><body>
+<header><h1>Автолюкс</h1><p>Мойка, шиномонтаж, автосервис · Фадеев ручей 9/1</p></header>
+<div id="cats" class="grid"></div>
+<div id="rest" hidden>
+<h2 id="clh">Тип авто</h2><div id="cl" class="row"></div>
+<h2>Услуга</h2><div id="svc"></div>
+<h2>Мастер</h2><div id="ms" class="row"></div>
+<h2>Дата</h2><div id="ds" class="row"></div>
+<h2>Свободное время</h2><div id="ts" class="row"></div>
+</div>
+<script>
+const tg=Telegram.WebApp;tg.ready();tg.expand();
+tg.setHeaderColor('#0f1f2b');tg.MainButton.setParams({color:'#1263e6',text_color:'#ffffff'});
+const S={},$=i=>document.getElementById(i),icon={wash:'🚿',tire:'🛞',service:'🔧'};let C;
+function fill(id,key,list,cls,next){
+  const e=$(id);e.innerHTML='';
+  list.forEach(({v,h})=>{
+    const d=document.createElement('div');d.className=cls;d.innerHTML=h;
+    d.onclick=()=>{S[key]=v;[...e.children].forEach(x=>x.classList.remove('on'));d.classList.add('on');next&&next();btn()};
+    e.appendChild(d);
+  });
+}
+function btn(){
+  if(S.cat&&S.ci!=null&&S.svc&&S.master&&S.d&&S.t){
+    tg.MainButton.setText('Записаться: '+S.d.slice(8)+'.'+S.d.slice(5,7)+' в '+S.t+' · '+C[S.cat].items.find(x=>x[0]==S.svc)[1][S.ci]);tg.MainButton.show();
+  }else tg.MainButton.hide();
+}
+function selCat(){
+  const k=S.cat,cl=C[k].classes,one=cl.length==1;S.ci=S.svc=S.master=S.d=S.t=null;$('rest').hidden=false;
+  $('clh').hidden=$('cl').hidden=one;
+  fill('cl','ci',cl.map((x,i)=>({v:i,h:x})),'ch',selCl);
+  fill('ms','master',[...C[k].masters,'any'].map(m=>({v:m,h:m=='any'?'Любой свободный':m})),'ch',selM);
+  $('ds').innerHTML=$('ts').innerHTML=$('svc').innerHTML='';
+  if(one){S.ci=0;selCl()}
+}
+function selCl(){
+  S.svc=null;fill('svc','svc',C[S.cat].items.map(([n,p])=>({v:n,h:`<span>${n}</span><i>${p[S.ci]}</i>`})),'it');
+}
+function selM(){
+  S.d=S.t=null;const t=Date.now();
+  fill('ds','d',[...Array(7)].map((_,i)=>{const x=new Date(t+i*864e5);
+    return{v:x.toLocaleDateString('sv'),h:x.toLocaleDateString('ru',{weekday:'short',day:'numeric',month:'short'})}}),'ch',selD);
+  $('ts').innerHTML='';
+}
+function selD(){
+  S.t=null;
+  fetch(`/api/slots?cat=${S.cat}&master=${encodeURIComponent(S.master)}&d=${S.d}`).then(r=>r.json()).then(a=>{
+    if(a.length)fill('ts','t',a.map(t=>({v:t,h:t})),'ch');
+    else $('ts').innerHTML='<div class="sub">На эту дату свободного времени нет — выберите другую</div>';
+  });
+}
+fetch('/api/config').then(r=>r.json()).then(c=>{
+  C=c;fill('cats','cat',Object.keys(c).map(k=>({v:k,h:`<span>${icon[k]}</span>${c[k].t.replace(/^\S+\s/,'')}`})),'c',selCat);
+});
+tg.MainButton.onClick(()=>tg.sendData(JSON.stringify({cat:S.cat,svc:S.svc,master:S.master,d:S.d,t:S.t,ci:S.ci})));
+</script></body></html>

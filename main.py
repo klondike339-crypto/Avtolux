@@ -15,36 +15,43 @@ TOKEN = os.environ["BOT_TOKEN"]
 ADMIN = int(os.getenv("ADMIN_ID", "0"))          # числовой Telegram ID владельца
 WEBAPP = os.getenv("WEBAPP_URL", "").strip()
 if not WEBAPP.startswith("https://"): WEBAPP = ""             # https-адрес мини-приложения (необязательно)
-PORT = int(os.getenv("PORT", "8080"))
+PORT = int(os.getenv("PORT", "3000"))
 MID = json.loads(os.getenv("MASTER_IDS", "{}"))  # {"Роман": 123456789} — уведомления мастерам
 TZ = ZoneInfo(os.getenv("TZ_NAME", "Europe/Moscow"))
 
 def now(): return datetime.now(TZ).replace(tzinfo=None)
 def today(): return now().date()
 
-W = "Цены «от»: легковой / кроссовер / джип / микроавтобус"
-T = "R12-15 / R16 / R17 (паркетн. от R15) / R19 (джипы от R15) / премиум. В непогоду на улице +50%"
-S5 = "250 / 300 / 350 / 400 / 500"
+def I(n, p, pre="от "): return [n, p, pre]
+S5 = [250, 300, 350, 400, 500]
 CATS = {
- "wash": {"t": "🚿 Мойка", "dur": 40, "hours": [0, 24], "leg": W,
-  "masters": ["Роман", "Борис", "Виталий", "Олег"], "items": [
-   ["Техническая мойка", "300 / 350 / 400 / 800"], ["Экспресс (пена, ковры)", "450 / 550 / 650 / 1500"],
-   ["Двухфазная мойка", "1000 / 1200 / 1300 / 2000"], ["Трёхфазная мойка", "1800 / 2000 / 2500 / 3000"],
-   ["Комплексная мойка", "1900 / 2300 / 2700 / 4500"], ["Мойка двигателя", "1500 / 1800 / 2100 / 2500"],
-   ["Уборка салона пылесосом", "400 / 500 / 600 / 800"], ["Безконтактная сушка", "800 / 1000 / 1200 / 1500"],
-   ["Озонирование салона", "1000 / 1000 / 1000 / 1500"], ["Антидождь", "800 / 1000 / 1200 / 1200"],
-   ["Химчистка кузова", "3000 / 4000 / 5000 / 5000"], ["Химчистка салона", "15000 / 15000 / 15000 / 15000"]]},
- "tire": {"t": "🛞 Шиномонтаж", "dur": 60, "hours": [0, 24], "leg": T, "masters": ["Роман", "Дмитрий"], "items": [
-   ["Снятие/установка колеса на авто", S5], ["Снятие/установка покрышки", S5], ["Балансировка колеса", S5],
-   ["Полный монтаж 1 колеса «под ключ»", "750 / 900 / 1050 / 1200 / 1500"],
-   ["Полный монтаж авто «под ключ»", "3000 / 3600 / 4200 / 4800 / 6000"],
-   ["Монтаж 1 колеса без снятия с авто", "500 / 600 / 700 / 700 / 1000"],
-   ["Монтаж авто без снятия", "2000 / 2400 / 2800 / 3600 / 4000"],
-   ["Ремонт покрышки (жгут / заплата)", "300 / от 350"], ["Вулканизация, 1 место", "от 1800"],
-   ["Правка диска (сталь / литой)", "от 200 / от 400"]]},
- "service": {"t": "🔧 Автосервис", "dur": 90, "hours": [9, 21], "leg": "Стоимость определяет мастер",
-  "masters": ["Павел"], "items": [["Диагностика и ремонт", "по договорённости"]]},
+ "wash": {"t": "🚿 Мойка", "dur": 40, "hours": [0, 24], "masters": ["Роман", "Борис", "Виталий", "Олег"],
+  "note": "Окончательную стоимость определяет мастер на месте.",
+  "classes": ["Легковой", "Кроссовер / паркетник", "Джип / микроавтобус", "Sprinter / Transit / Газель"], "items": [
+   I("Техническая мойка", [300, 350, 400, 800]), I("Экспресс (пена, ковры)", [450, 550, 650, 1500]),
+   I("Двухфазная мойка", [1000, 1200, 1300, 2000]), I("Трёхфазная мойка", [1800, 2000, 2500, 3000]),
+   I("Комплексная мойка", [1900, 2300, 2700, 4500]), I("Мойка двигателя", [1500, 1800, 2100, 2500]),
+   I("Уборка салона пылесосом", [400, 500, 600, 800]), I("Безконтактная сушка", [800, 1000, 1200, 1500], ""),
+   I("Озонирование салона", [1000, 1000, 1000, 1500]), I("Антидождь", [800, 1000, 1200, 1200]),
+   I("Химчистка кузова", [3000, 4000, 5000, 5000]), I("Химчистка салона", 15000)]},
+ "tire": {"t": "🛞 Шиномонтаж", "dur": 60, "hours": [0, 24], "masters": ["Роман", "Дмитрий"],
+  "note": "В непогоду на улице +50%. Профиль 45 и ниже, датчик давления, RunFlat — +50%.",
+  "classes": ["R12–15", "R16", "R17 (паркетники от R15)", "R19 (джипы, микроавтобусы от R15)", "G/S/E-класс, X5–X7, A8, Porsche"], "items": [
+   I("Снятие/установка колеса на авто", S5, ""), I("Снятие/установка покрышки", S5, ""), I("Балансировка колеса", S5, ""),
+   I("Полный монтаж 1 колеса «под ключ»", [750, 900, 1050, 1200, 1500], ""),
+   I("Полный монтаж авто «под ключ»", [3000, 3600, 4200, 4800, 6000], ""),
+   I("Монтаж 1 колеса без снятия с авто", [500, 600, 700, 700, 1000], ""),
+   I("Монтаж авто без снятия", [2000, 2400, 2800, 3600, 4000], ""),
+   I("Ремонт покрышки жгутом", 300, ""), I("Ремонт покрышки заплатой", 350), I("Вулканизация, 1 место", 1800),
+   I("Правка диска", "сталь от 200, литой от 400")]},
+ "service": {"t": "🔧 Автосервис", "dur": 90, "hours": [9, 21], "masters": ["Павел"], "note": "",
+  "classes": ["Любой автомобиль"], "items": [I("Диагностика и ремонт", "по договорённости")]},
 }
+
+def cost(cat, it, ci):
+    p = it[1][ci] if isinstance(it[1], list) else it[1]
+    return p if isinstance(p, str) else f"{it[2]}{p} ₽"
+
 STORE = ("🛞 <b>Сезонное хранение шин</b> (6 мес., за комплект)\n"
          "R12–14 — 3600 ₽\nR15–16 — 4200 ₽\nR17–22 — 4800 ₽")
 
@@ -53,6 +60,9 @@ db.row_factory = sqlite3.Row
 db.executescript("""create table if not exists b(id integer primary key, uid int, name text, cat text, svc text,
  master text, d text, t text, st text default 'ok', rem int default 0, ask int default 0);
 create table if not exists r(id integer primary key, uid int, name text, stars int, txt text, ts text);""")
+for _c in ("car", "cost"):
+    try: db.execute(f"alter table b add column {_c} text")
+    except sqlite3.OperationalError: pass
 
 def times(cat):
     a, b = CATS[cat]["hours"]
@@ -75,12 +85,14 @@ def free(cat, master, d):
 def masters_of(cat, master): return CATS[cat]["masters"] if master == "any" else [master]
 def slots(cat, master, d): return sorted({t for m in masters_of(cat, master) for t in free(cat, m, d)})
 
-def add(uid, name, cat, svc, master, d, t):
+def add(uid, name, cat, svc, master, d, t, ci):
     m = next((x for x in masters_of(cat, master) if t in free(cat, x, d)), None)
     if not m: return None
-    cur = db.execute("insert into b(uid,name,cat,svc,master,d,t) values(?,?,?,?,?,?,?)", (uid, name, cat, svc, m, d, t))
+    it = next(x for x in CATS[cat]["items"] if x[0] == svc)
+    car, c = CATS[cat]["classes"][ci], cost(cat, it, ci)
+    cur = db.execute("insert into b(uid,name,cat,svc,master,d,t,car,cost) values(?,?,?,?,?,?,?,?,?)", (uid, name, cat, svc, m, d, t, car, c))
     db.commit()
-    return m, cur.lastrowid
+    return m, cur.lastrowid, car, c
 
 async def tell(bot, uid, txt, **k):
     try: await bot.send_message(uid, txt, **k)
@@ -98,8 +110,8 @@ def menu():
     return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
 
 async def notify(bot, u, cat, svc, res, d, t):
-    m, i = res
-    txt = f"{CATS[cat]['t']} — {svc}\nМастер: {m}\n{dm(d)} в {t}"
+    m, i, car, c = res
+    txt = f"{CATS[cat]['t']} — {svc}\nАвто: {car}\nМастер: {m}\n{dm(d)} в {t}\n💰 Стоимость: {c}"
     if ADMIN: await tell(bot, ADMIN, f"🆕 Запись #{i}\n{txt}\nКлиент: <a href='tg://user?id={u.id}'>{u.full_name}</a>")
     if MID.get(m): await tell(bot, MID[m], f"🆕 Новая запись к вам\n{txt}")
     await tell(bot, u.id, f"✅ Вы записаны!\n{txt}\n📍 Фадеев ручей 9/1, тел. 20-51-51")
@@ -122,11 +134,24 @@ async def book(m: Message, state: FSMContext):
     await state.clear()
     await m.answer("Что вас интересует?", reply_markup=ik([[(v["t"], "c:" + k)] for k, v in CATS.items()]))
 
+def svc_kb(k, ci):
+    return ik([[(f"{it[0]} — {cost(k, it, ci)}", f"s:{i}")] for i, it in enumerate(CATS[k]["items"])])
+
 @r.callback_query(F.data.startswith("c:"))
 async def cat(c: CallbackQuery, state: FSMContext):
     k = c.data[2:]
     await state.update_data(cat=k)
-    await c.message.edit_text("Выберите услугу:", reply_markup=ik([[(n, f"s:{i}")] for i, (n, _) in enumerate(CATS[k]["items"])]))
+    cl = CATS[k]["classes"]
+    if len(cl) > 1:
+        return await c.message.edit_text("Выберите тип авто:", reply_markup=ik([[(x, f"k:{i}")] for i, x in enumerate(cl)]))
+    await state.update_data(ci=0)
+    await c.message.edit_text("Выберите услугу:", reply_markup=svc_kb(k, 0))
+
+@r.callback_query(F.data.startswith("k:"))
+async def car(c: CallbackQuery, state: FSMContext):
+    k, ci = (await state.get_data())["cat"], int(c.data[2:])
+    await state.update_data(ci=ci)
+    await c.message.edit_text("Выберите услугу:", reply_markup=svc_kb(k, ci))
 
 @r.callback_query(F.data.startswith("s:"))
 async def svc(c: CallbackQuery, state: FSMContext):
@@ -153,7 +178,7 @@ async def day(c: CallbackQuery, state: FSMContext):
 async def tm(c: CallbackQuery, state: FSMContext):
     d, t = await state.get_data(), c.data[2:]
     await state.clear()
-    res = add(c.from_user.id, c.from_user.full_name, d["cat"], d["svc"], d["master"], d["d"], t)
+    res = add(c.from_user.id, c.from_user.full_name, d["cat"], d["svc"], d["master"], d["d"], t, d["ci"])
     if not res: return await c.message.edit_text("Это время уже занято. Начните запись заново.")
     await c.message.edit_text("Готово ✅")
     await notify(c.bot, c.from_user, d["cat"], d["svc"], res, d["d"], t)
@@ -162,10 +187,10 @@ async def tm(c: CallbackQuery, state: FSMContext):
 async def wa(m: Message):
     try:
         p = json.loads(m.web_app_data.data)
-        cat, svc_, ma, d, t = p["cat"], p["svc"], p["master"], p["d"], p["t"]
+        cat, svc_, ma, d, t, ci = p["cat"], p["svc"], p["master"], p["d"], p["t"], int(p["ci"])
         datetime.fromisoformat(d)
-        assert cat in CATS and svc_ in [x[0] for x in CATS[cat]["items"]] and (ma == "any" or ma in CATS[cat]["masters"])
-        res = add(m.from_user.id, m.from_user.full_name, cat, svc_, ma, d, t)
+        assert cat in CATS and svc_ in [x[0] for x in CATS[cat]["items"]] and (ma == "any" or ma in CATS[cat]["masters"]) and 0 <= ci < len(CATS[cat]["classes"])
+        res = add(m.from_user.id, m.from_user.full_name, cat, svc_, ma, d, t, ci)
     except Exception:
         return await m.answer("Не удалось оформить запись, попробуйте ещё раз.")
     if not res: return await m.answer("Это время уже занято, выберите другое.")
@@ -175,14 +200,24 @@ async def wa(m: Message):
 async def price(m: Message):
     await m.answer("Выберите раздел:", reply_markup=ik([[(v["t"], "p:" + k)] for k, v in CATS.items()] + [[("🛞 Хранение шин", "p:store")]]))
 
+def plist(k, ci):
+    v = CATS[k]
+    return (f"<b>{v['t']}</b> — {v['classes'][ci]}\n\n" + "\n".join(f"• {it[0]} — {cost(k, it, ci)}" for it in v["items"])
+            + (f"\n\n<i>{v['note']}</i>" if v["note"] else ""))
+
 @r.callback_query(F.data.startswith("p:"))
 async def pr(c: CallbackQuery):
     k = c.data[2:]
-    if k == "store": txt = STORE
-    else:
-        v = CATS[k]
-        txt = f"<b>{v['t']}</b>\n<i>{v['leg']}</i>\n\n" + "\n".join(f"• {n} — {p}" for n, p in v["items"])
-    await c.message.answer(txt)
+    if k == "store": await c.message.answer(STORE)
+    elif len(CATS[k]["classes"]) > 1:
+        await c.message.answer("Выберите тип авто:", reply_markup=ik([[(x, f"q:{k}:{i}")] for i, x in enumerate(CATS[k]["classes"])]))
+    else: await c.message.answer(plist(k, 0))
+    await c.answer()
+
+@r.callback_query(F.data.startswith("q:"))
+async def pq(c: CallbackQuery):
+    _, k, i = c.data.split(":")
+    await c.message.answer(plist(k, int(i)))
     await c.answer()
 
 @r.message(F.text == "🛞 Хранение шин")
@@ -278,7 +313,9 @@ async def loop(bot):
 
 # ---- сервер мини-приложения ----
 async def page(_): return web.FileResponse(os.path.join(os.path.dirname(__file__), "webapp.html"))
-async def cfg(_): return web.json_response(CATS)
+async def cfg(_):
+    return web.json_response({k: {"t": v["t"], "masters": v["masters"], "classes": v["classes"], "note": v["note"],
+        "items": [[it[0], [cost(k, it, i) for i in range(len(v["classes"]))]] for it in v["items"]]} for k, v in CATS.items()})
 async def sl(req):
     q = req.query
     k = q.get("cat")

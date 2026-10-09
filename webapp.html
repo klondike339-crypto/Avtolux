@@ -1,79 +1,947 @@
-<!doctype html>
-<html lang="ru"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Автолюкс</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>
-:root{--bg:#e8eff3;--card:#fff;--ink:#0f1f2b;--mu:#5d7080;--ln:#d3dee6;--ac:#1263e6;--sg:#ffc933}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 16px 110px}
-header{margin:0 -16px 18px;padding:28px 16px 22px;background:var(--ink);color:#fff;border-radius:0 0 26px 26px}
-h1{margin:0;font-size:32px;font-weight:800;letter-spacing:-.02em}
-header p{margin:6px 0 0;color:#a9bccb;font-size:14px}
-h2{font-size:15px;font-weight:700;color:var(--mu);margin:24px 0 10px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.c,.it,.ch{background:var(--card);border:2px solid transparent;transition:border-color .15s,background .15s}
-.c{border-radius:18px;padding:16px 6px;text-align:center;font-weight:700;font-size:14px}
-.c span{display:block;font-size:30px;margin-bottom:6px}
-.it{display:flex;justify-content:space-between;align-items:center;gap:12px;border-radius:14px;padding:13px 14px;margin-bottom:8px}
-.it i{font-style:normal;font-weight:700;font-size:13px;background:var(--sg);color:var(--ink);border-radius:8px;padding:3px 8px;text-align:right}
-.row{display:flex;flex-wrap:wrap;gap:8px}
-.ch{border-radius:12px;padding:10px 14px;font-weight:600}
-.on{border-color:var(--ac)!important;background:#eaf1ff!important}
-.sub{color:var(--mu)}
-</style></head><body>
-<header><h1>Автолюкс</h1><p>Мойка, шиномонтаж, автосервис · Фадеев ручей 9/1</p></header>
-<div id="cats" class="grid"></div>
-<div id="rest" hidden>
-<h2 id="clh">Тип авто</h2><div id="cl" class="row"></div>
-<h2>Услуга</h2><div id="svc"></div>
-<h2>Мастер</h2><div id="ms" class="row"></div>
-<h2>Дата</h2><div id="ds" class="row"></div>
-<h2>Свободное время</h2><div id="ts" class="row"></div>
-</div>
-<script>
-const tg=Telegram.WebApp;tg.ready();tg.expand();
-tg.setHeaderColor('#0f1f2b');tg.MainButton.setParams({color:'#1263e6',text_color:'#ffffff'});
-const S={},$=i=>document.getElementById(i),icon={wash:'🚿',tire:'🛞',service:'🔧'};let C;
-function fill(id,key,list,cls,next){
-  const e=$(id);e.innerHTML='';
-  list.forEach(({v,h})=>{
-    const d=document.createElement('div');d.className=cls;d.innerHTML=h;
-    d.onclick=()=>{S[key]=v;[...e.children].forEach(x=>x.classList.remove('on'));d.classList.add('on');next&&next();btn()};
-    e.appendChild(d);
-  });
-}
-function btn(){
-  if(S.cat&&S.ci!=null&&S.svc&&S.master&&S.d&&S.t){
-    tg.MainButton.setText('Записаться: '+S.d.slice(8)+'.'+S.d.slice(5,7)+' в '+S.t+' · '+C[S.cat].items.find(x=>x[0]==S.svc)[1][S.ci]);tg.MainButton.show();
-  }else tg.MainButton.hide();
-}
-function selCat(){
-  const k=S.cat,cl=C[k].classes,one=cl.length==1;S.ci=S.svc=S.master=S.d=S.t=null;$('rest').hidden=false;
-  $('clh').hidden=$('cl').hidden=one;
-  fill('cl','ci',cl.map((x,i)=>({v:i,h:x})),'ch',selCl);
-  fill('ms','master',[...C[k].masters,'any'].map(m=>({v:m,h:m=='any'?'Любой свободный':m})),'ch',selM);
-  $('ds').innerHTML=$('ts').innerHTML=$('svc').innerHTML='';
-  if(one){S.ci=0;selCl()}
-}
-function selCl(){
-  S.svc=null;fill('svc','svc',C[S.cat].items.map(([n,p])=>({v:n,h:`<span>${n}</span><i>${p[S.ci]}</i>`})),'it');
-}
-function selM(){
-  S.d=S.t=null;const t=Date.now();
-  fill('ds','d',[...Array(7)].map((_,i)=>{const x=new Date(t+i*864e5);
-    return{v:x.toLocaleDateString('sv'),h:x.toLocaleDateString('ru',{weekday:'short',day:'numeric',month:'short'})}}),'ch',selD);
-  $('ts').innerHTML='';
-}
-function selD(){
-  S.t=null;
-  fetch(`/api/slots?cat=${S.cat}&master=${encodeURIComponent(S.master)}&d=${S.d}`).then(r=>r.json()).then(a=>{
-    if(a.length)fill('ts','t',a.map(t=>({v:t,h:t})),'ch');
-    else $('ts').innerHTML='<div class="sub">На эту дату свободного времени нет — выберите другую</div>';
-  });
-}
-fetch('/api/config').then(r=>r.json()).then(c=>{
-  C=c;fill('cats','cat',Object.keys(c).map(k=>({v:k,h:`<span>${icon[k]}</span>${c[k].t.replace(/^\S+\s/,'')}`})),'c',selCat);
-});
-tg.MainButton.onClick(()=>tg.sendData(JSON.stringify({cat:S.cat,svc:S.svc,master:S.master,d:S.d,t:S.t,ci:S.ci})));
-</script></body></html>
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Автолюкс — Автокомплекс</title>
+  
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              400: '#38bdf8',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              900: '#0c4a6e',
+              accent: '#38bdf8'
+            },
+            tgBg: 'var(--tg-theme-bg-color, #0f172a)',
+            tgSecBg: 'var(--tg-theme-secondary-bg-color, #1e293b)',
+            tgText: 'var(--tg-theme-text-color, #f8fafc)',
+            tgHint: 'var(--tg-theme-hint-color, #94a3b8)',
+            tgBtn: 'var(--tg-theme-button-color, #0284c7)',
+            tgBtnText: 'var(--tg-theme-button-text-color, #ffffff)'
+          },
+          boxShadow: {
+            'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.36)',
+            'glow': '0 0 20px rgba(56, 189, 248, 0.25)',
+            'card-hover': '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)'
+          },
+          animation: {
+            'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'bounce-short': 'bounce 0.5s ease-in-out 1',
+            'fade-in': 'fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(8px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    * {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    /* Custom smooth scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.2);
+      border-radius: 99px;
+    }
+
+    /* Glassmorphic elements */
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .light .glass-panel {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .glass-bar {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .light .glass-bar {
+      background: rgba(255, 255, 255, 0.92);
+      border-top: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    .active-card-ring {
+      position: relative;
+    }
+    .active-card-ring::after {
+      content: '';
+      position: absolute;
+      inset: -1.5px;
+      border-radius: inherit;
+      padding: 1.5px;
+      background: linear-gradient(135deg, #38bdf8, #0284c7);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    /* Hide horizontal scrollbar for cleaner mobile look */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-36 antialiased selection:bg-brand-500 selection:text-white transition-colors duration-300">
+
+  <header class="sticky top-0 z-30 pt- safe-top glass-panel border-b border-slate-800/60 shadow-md">
+    <div class="max-w-md mx-auto px-4 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-sky-400 p-0.5 shadow-glow flex items-center justify-center">
+          <div class="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
+            <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-lg tracking-tight text-white leading-none">АВТОЛЮКС</h1>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              PRO
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+            <svg class="w-3 h-3 text-emerald-400 inline" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+            </svg>
+            Фадеев ручей 9/1
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Info / Theme trigger button -->
+      <button id="infoBtn" onclick="toggleInfoModal()" class="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 flex items-center justify-center text-slate-300 transition-all active:scale-95">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Step Progress Bar -->
+    <div class="max-w-md mx-auto px-4 pb-2.5">
+      <div class="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-1.5 px-0.5">
+        <span id="stepTitle">Шаг 1 из 4: Услуги и авто</span>
+        <span id="stepPercent" class="text-sky-400">25%</span>
+      </div>
+      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden p-0.5">
+        <div id="progressBar" class="h-full bg-gradient-to-r from-sky-500 to-brand-500 rounded-full transition-all duration-300 w-1/4"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-4 pt-4 space-y-5">
+
+    <!-- SECTION 1: Service Category Selector -->
+    <section class="animate-fade-in">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">1. Направление</h2>
+        <span class="text-xs text-slate-500">выберите одно</span>
+      </div>
+      <div id="catGrid" class="grid grid-cols-3 gap-2.5">
+        <!-- Categories injected via JS -->
+      </div>
+    </section>
+
+    <!-- SECTION 2: Vehicle Class Selector -->
+    <section id="secCar" class="animate-fade-in hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">2. Класс автомобиля</h2>
+        <span class="text-xs text-sky-400 font-medium">влияет на цены</span>
+      </div>
+      <div id="carGrid" class="grid grid-cols-2 gap-2">
+        <!-- Cars injected via JS -->
+      </div>
+    </section>
+
+    <!-- SECTION 3: Multi-Service Items Selector with Quantities -->
+    <section id="secServices" class="animate-fade-in hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">3. Услуги и количество</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Выберите нужные позиций и количество (+/-)</p>
+        </div>
+        <button id="clearCartBtn" onclick="clearCart()" class="text-xs text-rose-400 hover:text-rose-300 hidden transition-colors font-medium">
+          Сбросить
+        </button>
+      </div>
+
+      <!-- Quick Search inside services -->
+      <div class="relative mb-3">
+        <input type="text" id="svcSearch" placeholder="Поиск услуги..." oninput="renderServices()" class="w-full bg-slate-900/90 border border-slate-800 focus:border-sky-500 text-slate-100 text-sm rounded-xl pl-9 pr-4 py-2.5 outline-none transition-all placeholder:text-slate-500">
+        <svg class="w-4 h-4 text-slate-500 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+      </div>
+
+      <div id="svcList" class="space-y-2.5">
+        <!-- Service items injected via JS -->
+      </div>
+    </section>
+
+    <!-- SECTION 4: Master Selector -->
+    <section id="secMaster" class="animate-fade-in hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">4. Специалист</h2>
+        <span class="text-xs text-slate-500">по желанию</span>
+      </div>
+      <div id="masterGrid" class="grid grid-cols-2 gap-2.5">
+        <!-- Masters injected via JS -->
+      </div>
+    </section>
+
+    <!-- SECTION 5: Date Selector -->
+    <section id="secDate" class="animate-fade-in hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">5. Дата визита</h2>
+        <span id="selectedDateLabel" class="text-xs text-sky-400 font-semibold"></span>
+      </div>
+      <div id="dateStrip" class="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+        <!-- Dates injected via JS -->
+      </div>
+    </section>
+
+    <!-- SECTION 6: Time Slot Picker -->
+    <section id="secTime" class="animate-fade-in hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">6. Свободное время</h2>
+        <span id="timeCountLabel" class="text-xs text-slate-400"></span>
+      </div>
+      <div id="timeGrid" class="grid grid-cols-4 gap-2">
+        <!-- Time slots injected via JS -->
+      </div>
+    </section>
+  </main>
+
+  <div id="bottomBar" class="fixed bottom-0 left-0 right-0 z-40 glass-bar px-4 py-3.5 transition-all duration-300">
+    <div class="max-w-md mx-auto">
+      
+      <!-- Cart Collapsible Details Trigger -->
+      <div id="cartDrawer" class="hidden mb-3 p-3 bg-slate-900/95 border border-slate-800 rounded-2xl max-h-48 overflow-y-auto space-y-2">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800 text-xs font-bold text-slate-400">
+          <span>ВЫБРАННЫЕ УСЛУГИ</span>
+          <span id="drawerCount" class="text-sky-400">0 шт</span>
+        </div>
+        <div id="drawerItems" class="space-y-1.5 text-xs">
+          <!-- Items injected via JS -->
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Expand Cart Toggle & Cost -->
+        <button onclick="toggleCartDrawer()" class="flex-1 text-left bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 rounded-2xl px-3.5 py-2.5 flex items-center justify-between transition-all active:scale-[0.98]">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 text-[11px] text-slate-400">
+              <span id="cartSummaryCount" class="font-bold text-sky-400">0 услуг</span>
+              <span>•</span>
+              <span id="cartSummaryHint" class="truncate">Выберите категории</span>
+            </div>
+            <div id="cartTotalPrice" class="text-base font-extrabold text-white truncate mt-0.5">
+              0 ₽
+            </div>
+          </div>
+          <svg id="drawerChevron" class="w-5 h-5 text-slate-400 transition-transform duration-200 flex-none ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+          </svg>
+        </button>
+
+        <!-- Submit Button -->
+        <button id="submitBtn" onclick="submitBooking()" disabled class="px-5 py-3 rounded-2xl bg-gradient-to-r from-sky-500 to-brand-600 hover:from-sky-400 hover:to-brand-500 text-white font-bold text-sm shadow-glow disabled:opacity-40 disabled:pointer-events-none transition-all active:scale-95 flex items-center gap-2 flex-none">
+          <span>Записаться</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info & Contacts Modal -->
+  <div id="infoModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md hidden items-center justify-center p-4 transition-all">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-fade-in relative">
+      <button onclick="toggleInfoModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white">
+        ✕
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-bold text-lg text-white">Автокомплекс «Автолюкс»</h3>
+          <p class="text-xs text-slate-400">Мурманск · Фадеев ручей 9/1</p>
+        </div>
+      </div>
+
+      <div class="space-y-2 text-xs text-slate-300 pt-2 border-t border-slate-800">
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/50">
+          <span class="text-slate-400">Мойка & Шиномонтаж:</span>
+          <span class="font-semibold text-emerald-400">Круглосуточно (24/7)</span>
+        </div>
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/50">
+          <span class="text-slate-400">Автосервис:</span>
+          <span class="font-semibold text-white">09:00 — 21:00</span>
+        </div>
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/50">
+          <span class="text-slate-400">Телефон:</span>
+          <a href="tel:205151" class="font-bold text-sky-400 underline">20-51-51</a>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-400 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+        💡 При выборе нескольких услуг время записи автоматически рассчитывается с учетом загруженности мастером.
+      </p>
+
+      <button onclick="toggleInfoModal()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs">
+        Понятно
+      </button>
+    </div>
+  </div>
+
+  <!-- Success Confirmation Modal -->
+  <div id="successModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl animate-fade-in">
+      <div class="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-glow">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <div>
+        <h3 class="text-xl font-extrabold text-white">Запись сформирована!</h3>
+        <p class="text-xs text-slate-400 mt-1">Данные отправлены в Telegram</p>
+      </div>
+
+      <div id="summaryCard" class="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 text-left text-xs space-y-2">
+        <!-- Details injected via JS -->
+      </div>
+
+      <button onclick="closeSuccess()" class="w-full py-3 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm shadow-glow">
+        Отлично
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --- TELEGRAM WEB APP INTEGRATION ---
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      try { tg.setHeaderColor('#0f172a'); } catch(e){}
+    }
+
+    function haptic(type = 'light') {
+      if (tg?.HapticFeedback) {
+        if (type === 'selection') tg.HapticFeedback.selectionChanged();
+        else if (type === 'success') tg.HapticFeedback.notificationOccurred('success');
+        else tg.HapticFeedback.impactOccurred(type);
+      }
+    }
+
+    // --- APPLICATION DATA CONFIGURATION ---
+    const CONFIG = {
+      categories: {
+        wash: {
+          title: "Мойка",
+          icon: `<path d="M12 3c3.5 4.2 6 7 6 10a6 6 0 0 1-12 0c0-3 2.5-5.8 6-10z"/>`,
+          subtitle: "24/7 · от 300 ₽",
+          durBase: 30,
+          classes: [
+            { id: 0, name: "Легковой", desc: "Седан, хэтчбек" },
+            { id: 1, name: "Кроссовер", desc: "Паркетник, компакт" },
+            { id: 2, name: "Джип / Внедорожник", desc: "Большой SUV, рама" },
+            { id: 3, name: "Микроавтобус / Газель", desc: "Sprinter, Transit" }
+          ],
+          masters: ["Любой свободный", "Роман", "Борис", "Виталий", "Олег"],
+          items: [
+            { id: "w1", name: "Техническая мойка", prices: [300, 350, 400, 800], time: 20 },
+            { id: "w2", name: "Экспресс (пена + ковры)", prices: [450, 550, 650, 1500], time: 25 },
+            { id: "w3", name: "Двухфазная мойка", prices: [1000, 1200, 1300, 2000], time: 40 },
+            { id: "w4", name: "Трёхфазная мойка", prices: [1800, 2000, 2500, 3000], time: 50 },
+            { id: "w5", name: "Комплексная мойка", prices: [1900, 2300, 2700, 4500], time: 60 },
+            { id: "w6", name: "Мойка двигателя", prices: [1500, 1800, 2100, 2500], time: 30 },
+            { id: "w7", name: "Уборка салона пылесосом", prices: [400, 500, 600, 800], time: 20 },
+            { id: "w8", name: "Бесконтактная сушка", prices: [800, 1000, 1200, 1500], time: 20 },
+            { id: "w9", name: "Озонирование салона", prices: [1000, 1000, 1000, 1500], time: 30 },
+            { id: "w10", name: "Покрытие «Антидождь»", prices: [800, 1000, 1200, 1200], time: 25 },
+            { id: "w11", name: "Химчистка кузова", prices: [3000, 4000, 5000, 5000], time: 90 },
+            { id: "w12", name: "Химчистка салона", prices: [15000, 15000, 18000, 20000], time: 240 }
+          ]
+        },
+        tire: {
+          title: "Шиномонтаж",
+          icon: `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/>`,
+          subtitle: "24/7 · от 250 ₽",
+          durBase: 30,
+          classes: [
+            { id: 0, name: "R12 — R15", desc: "Стандарт" },
+            { id: 1, name: "R16", desc: "Средний размер" },
+            { id: 2, name: "R17 (Паркетники от R15)", desc: "Кроссоверы" },
+            { id: 3, name: "R19 (Джипы / Микро)", desc: "Внедорожники" },
+            { id: 4, name: "Премиум / RunFlat", desc: "Porsche, X5-X7, A8" }
+          ],
+          masters: ["Любой свободный", "Роман", "Дмитрий"],
+          items: [
+            { id: "t1", name: "Снятие/установка колеса", prices: [250, 300, 350, 400, 500], time: 10 },
+            { id: "t2", name: "Балансировка колеса", prices: [250, 300, 350, 400, 500], time: 15 },
+            { id: "t3", name: "Монтаж 1 колеса «под ключ»", prices: [750, 900, 1050, 1200, 1500], time: 20 },
+            { id: "t4", name: "Комплексный переобув 4 колес", prices: [3000, 3600, 4200, 4800, 6000], time: 50 },
+            { id: "t5", name: "Ремонт покрышки жгутом", prices: [300, 300, 300, 300, 400], time: 15 },
+            { id: "t6", name: "Ремонт покрышки заплатой", prices: [350, 350, 400, 450, 500], time: 20 },
+            { id: "t7", name: "Вулканизация (1 место)", prices: [1800, 1800, 1800, 2000, 2200], time: 40 },
+            { id: "t8", name: "Правка диска", prices: ["от 400 ₽", "от 400 ₽", "от 500 ₽", "от 600 ₽", "от 800 ₽"], time: 45 }
+          ]
+        },
+        service: {
+          title: "Автосервис",
+          icon: `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
+          subtitle: "09:00-21:00",
+          durBase: 60,
+          classes: [
+            { id: 0, name: "Любой автомобиль", desc: "Все марки и модели" }
+          ],
+          masters: ["Павел (Шеф-механик)"],
+          items: [
+            { id: "s1", name: "Компьютерная диагностика", prices: [1000], time: 30 },
+            { id: "s2", name: "Диагностика ходовой части", prices: [800], time: 30 },
+            { id: "s3", name: "Замена масла и фильтра ГБЦ", prices: [1200], time: 40 },
+            { id: "s4", name: "Замена тормозных колодок (ось)", prices: [1500], time: 45 },
+            { id: "s5", name: "Замена тормозных дисков + колодок", prices: [2500], time: 60 },
+            { id: "s6", name: "Ремонт по договоренности", prices: ["договорная"], time: 60 }
+          ]
+        }
+      }
+    };
+
+    // --- STATE MANAGEMENT ---
+    let state = {
+      catKey: 'wash',
+      carIndex: 0,
+      cart: {}, // { itemId: quantity }
+      master: 'Любой свободный',
+      date: null,
+      time: null
+    };
+
+    // Generate upcoming dates (7 days)
+    const upcomingDates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const iso = d.toISOString().split('T')[0];
+      const dayNum = d.getDate();
+      const dayName = d.toLocaleDateString('ru-RU', { weekday: 'short' });
+      const monthName = d.toLocaleDateString('ru-RU', { month: 'short' });
+      return { iso, dayNum, dayName, monthName, isToday: i === 0 };
+    });
+
+    // Default to today
+    state.date = upcomingDates[0].iso;
+
+    function init() {
+      renderCategories();
+      renderCarClasses();
+      renderServices();
+      renderMasters();
+      renderDates();
+      renderTimeSlots();
+      updateCartSummary();
+    }
+
+    // --- RENDER CATEGORIES ---
+    function renderCategories() {
+      const container = document.getElementById('catGrid');
+      container.innerHTML = Object.entries(CONFIG.categories).map(([key, cat]) => {
+        const isActive = state.catKey === key;
+        return `
+          <button onclick="selectCategory('${key}')" class="p-3 rounded-2xl text-left transition-all relative overflow-hidden flex flex-col justify-between h-24 ${
+            isActive 
+              ? 'bg-gradient-to-br from-brand-600 to-sky-600 text-white shadow-glow ring-2 ring-sky-400' 
+              : 'bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 text-slate-300'
+          }">
+            <div class="flex items-center justify-between w-full">
+              <svg class="w-6 h-6 ${isActive ? 'text-white' : 'text-sky-400'}" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                ${cat.icon}
+              </svg>
+              ${isActive ? '<span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>' : ''}
+            </div>
+            <div>
+              <div class="font-bold text-xs tracking-tight">${cat.title}</div>
+              <div class="text-[10px] ${isActive ? 'text-sky-100' : 'text-slate-400'} mt-0.5">${cat.subtitle}</div>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectCategory(key) {
+      if (state.catKey === key) return;
+      haptic('selection');
+      state.catKey = key;
+      state.carIndex = 0;
+      state.cart = {};
+      state.time = null;
+
+      renderCategories();
+      renderCarClasses();
+      renderServices();
+      renderMasters();
+      renderTimeSlots();
+      updateCartSummary();
+
+      document.getElementById('secCar').classList.remove('hidden');
+      document.getElementById('secServices').classList.remove('hidden');
+      document.getElementById('secMaster').classList.remove('hidden');
+    }
+
+    // --- RENDER CAR CLASSES ---
+    function renderCarClasses() {
+      const cat = CONFIG.categories[state.catKey];
+      const container = document.getElementById('carGrid');
+      const sec = document.getElementById('secCar');
+
+      if (!cat || cat.classes.length <= 1) {
+        sec.classList.add('hidden');
+        return;
+      }
+      sec.classList.remove('hidden');
+
+      container.innerHTML = cat.classes.map(c => {
+        const isActive = state.carIndex === c.id;
+        return `
+          <button onclick="selectCarClass(${c.id})" class="p-2.5 rounded-2xl text-left border transition-all flex items-center gap-2.5 ${
+            isActive 
+              ? 'bg-sky-500/10 border-sky-500 text-white font-semibold shadow-sm' 
+              : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-400'
+          }">
+            <div class="w-7 h-7 rounded-xl ${isActive ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center flex-none text-xs font-bold">
+              ${c.id + 1}
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-bold leading-tight truncate ${isActive ? 'text-sky-400' : 'text-slate-200'}">${c.name}</div>
+              <div class="text-[10px] text-slate-400 truncate">${c.desc}</div>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectCarClass(idx) {
+      haptic('selection');
+      state.carIndex = idx;
+      renderCarClasses();
+      renderServices();
+      updateCartSummary();
+    }
+
+    // --- RENDER SERVICES WITH QUANTITY CONTROLS ---
+    function renderServices() {
+      const cat = CONFIG.categories[state.catKey];
+      const container = document.getElementById('svcList');
+      const searchVal = (document.getElementById('svcSearch').value || '').toLowerCase();
+      
+      const filtered = cat.items.filter(item => item.name.toLowerCase().includes(searchVal));
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-xs text-slate-500">Услуги не найдены</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => {
+        const qty = state.cart[item.id] || 0;
+        const rawPrice = item.prices[Math.min(state.carIndex, item.prices.length - 1)];
+        const priceStr = typeof rawPrice === 'number' ? `${rawPrice} ₽` : rawPrice;
+
+        return `
+          <div class="p-3 rounded-2xl bg-slate-900/80 border ${qty > 0 ? 'border-sky-500/80 bg-sky-950/20 shadow-sm' : 'border-slate-800'} flex items-center justify-between gap-3 transition-all">
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-bold text-slate-100 leading-snug">${item.name}</div>
+              <div class="text-[11px] text-sky-400 font-semibold mt-0.5">${priceStr}</div>
+            </div>
+
+            <!-- Quantity Counter (+/-) Buttons -->
+            <div class="flex items-center gap-1.5 flex-none">
+              ${qty > 0 ? `
+                <button onclick="changeQty('${item.id}', -1)" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-90 text-sky-400 font-bold text-base flex items-center justify-center transition-all">
+                  −
+                </button>
+                <span class="w-6 text-center text-xs font-extrabold text-white">${qty}</span>
+              ` : ''}
+
+              <button onclick="changeQty('${item.id}', 1)" class="px-3 h-8 rounded-xl ${qty > 0 ? 'bg-sky-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} active:scale-90 font-semibold text-xs flex items-center justify-center gap-1 transition-all">
+                ${qty === 0 ? '<span>+ Добавить</span>' : '<span class="font-bold text-base">+</span>'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('secServices').classList.remove('hidden');
+      document.getElementById('clearCartBtn').classList.toggle('hidden', Object.keys(state.cart).length === 0);
+    }
+
+    function changeQty(itemId, delta) {
+      haptic('light');
+      const current = state.cart[itemId] || 0;
+      const next = current + delta;
+
+      if (next <= 0) {
+        delete state.cart[itemId];
+      } else {
+        state.cart[itemId] = Math.min(next, 10); // cap max 10
+      }
+
+      state.time = null; // reset time slot on cart change
+      renderServices();
+      renderMasters();
+      renderTimeSlots();
+      updateCartSummary();
+    }
+
+    function clearCart() {
+      haptic('medium');
+      state.cart = {};
+      state.time = null;
+      renderServices();
+      renderTimeSlots();
+      updateCartSummary();
+    }
+
+    // --- RENDER MASTERS ---
+    function renderMasters() {
+      const cat = CONFIG.categories[state.catKey];
+      const container = document.getElementById('masterGrid');
+      const sec = document.getElementById('secMaster');
+
+      const hasCartItems = Object.keys(state.cart).length > 0;
+      if (!hasCartItems) {
+        sec.classList.add('hidden');
+        return;
+      }
+      sec.classList.remove('hidden');
+
+      container.innerHTML = cat.masters.map(m => {
+        const isActive = state.master === m;
+        return `
+          <button onclick="selectMaster('${m}')" class="p-2.5 rounded-2xl border text-left flex items-center gap-2.5 transition-all ${
+            isActive 
+              ? 'bg-sky-500/10 border-sky-500 text-white' 
+              : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+          }">
+            <div class="w-8 h-8 rounded-xl ${isActive ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-xs font-bold flex-none">
+              👨‍🔧
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-bold truncate ${isActive ? 'text-sky-400' : 'text-slate-200'}">${m}</div>
+              <div class="text-[10px] text-slate-400 truncate">Специалист</div>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectMaster(m) {
+      haptic('selection');
+      state.master = m;
+      state.time = null;
+      renderMasters();
+      renderTimeSlots();
+      updateCartSummary();
+    }
+
+    // --- RENDER DATES STRIP ---
+    function renderDates() {
+      const container = document.getElementById('dateStrip');
+      container.innerHTML = upcomingDates.map(d => {
+        const isActive = state.date === d.iso;
+        return `
+          <button onclick="selectDate('${d.iso}')" class="flex-none w-14 py-2.5 rounded-2xl border text-center transition-all ${
+            isActive 
+              ? 'bg-gradient-to-b from-sky-500 to-brand-600 border-sky-400 text-white shadow-glow' 
+              : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:bg-slate-800'
+          }">
+            <div class="text-[10px] uppercase font-bold opacity-80">${d.dayName}</div>
+            <div class="text-base font-extrabold mt-0.5">${d.dayNum}</div>
+            <div class="text-[9px] opacity-75">${d.monthName}</div>
+          </button>
+        `;
+      }).join('');
+
+      const sel = upcomingDates.find(d => d.iso === state.date);
+      document.getElementById('selectedDateLabel').innerText = sel ? `${sel.dayNum} ${sel.monthName}, ${sel.dayName}` : '';
+    }
+
+    function selectDate(iso) {
+      haptic('selection');
+      state.date = iso;
+      state.time = null;
+      renderDates();
+      renderTimeSlots();
+      updateCartSummary();
+    }
+
+    // --- RENDER TIME SLOTS ---
+    function renderTimeSlots() {
+      const container = document.getElementById('timeGrid');
+      const secDate = document.getElementById('secDate');
+      const secTime = document.getElementById('secTime');
+
+      const hasCart = Object.keys(state.cart).length > 0;
+      if (!hasCart) {
+        secDate.classList.add('hidden');
+        secTime.classList.add('hidden');
+        return;
+      }
+
+      secDate.classList.remove('hidden');
+      secTime.classList.remove('hidden');
+
+      // Generate time slots based on category hours
+      const cat = CONFIG.categories[state.catKey];
+      const startHour = state.catKey === 'service' ? 9 : 0;
+      const endHour = state.catKey === 'service' ? 20 : 23;
+
+      let slots = [];
+      for (let h = startHour; h <= endHour; h++) {
+        slots.push(`${String(h).padStart(2, '0')}:00`);
+        slots.push(`${String(h).padStart(2, '0')}:30`);
+      }
+
+      document.getElementById('timeCountLabel').innerText = `${slots.length} слотов`;
+
+      container.innerHTML = slots.map(t => {
+        const isActive = state.time === t;
+        return `
+          <button onclick="selectTime('${t}')" class="py-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
+            isActive 
+              ? 'bg-sky-500 border-sky-400 text-white shadow-glow' 
+              : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700'
+          }">
+            ${t}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectTime(t) {
+      haptic('selection');
+      state.time = t;
+      renderTimeSlots();
+      updateCartSummary();
+    }
+
+    // --- CART CALCULATIONS & SUMMARY ---
+    function calculateTotal() {
+      const cat = CONFIG.categories[state.catKey];
+      let sum = 0;
+      let totalQty = 0;
+      let totalTime = 0;
+      let hasCustomPrice = false;
+
+      Object.entries(state.cart).forEach(([itemId, qty]) => {
+        const item = cat.items.find(x => x.id === itemId);
+        if (item) {
+          totalQty += qty;
+          totalTime += (item.time || 20) * qty;
+
+          const rawPrice = item.prices[Math.min(state.carIndex, item.prices.length - 1)];
+          if (typeof rawPrice === 'number') {
+            sum += rawPrice * qty;
+          } else {
+            hasCustomPrice = true;
+          }
+        }
+      });
+
+      return { sum, totalQty, totalTime, hasCustomPrice };
+    }
+
+    function updateCartSummary() {
+      const { sum, totalQty, totalTime, hasCustomPrice } = calculateTotal();
+      const cat = CONFIG.categories[state.catKey];
+
+      const priceElem = document.getElementById('cartTotalPrice');
+      const countElem = document.getElementById('cartSummaryCount');
+      const hintElem = document.getElementById('cartSummaryHint');
+      const submitBtn = document.getElementById('submitBtn');
+
+      // Update drawer
+      document.getElementById('drawerCount').innerText = `${totalQty} шт`;
+      const drawerItems = document.getElementById('drawerItems');
+      
+      if (totalQty === 0) {
+        drawerItems.innerHTML = `<p class="text-slate-500 text-center py-2">Корзина пуста</p>`;
+        priceElem.innerText = '0 ₽';
+        countElem.innerText = '0 услуг';
+        hintElem.innerText = 'Выберите услуги выше';
+        submitBtn.disabled = true;
+        document.getElementById('progressBar').style.width = '25%';
+        document.getElementById('stepTitle').innerText = 'Шаг 1 из 4: Выберите услуги';
+        document.getElementById('stepPercent').innerText = '25%';
+        return;
+      }
+
+      // Drawer Content
+      drawerItems.innerHTML = Object.entries(state.cart).map(([itemId, qty]) => {
+        const item = cat.items.find(x => x.id === itemId);
+        const rawPrice = item.prices[Math.min(state.carIndex, item.prices.length - 1)];
+        const pStr = typeof rawPrice === 'number' ? `${rawPrice * qty} ₽` : rawPrice;
+        return `
+          <div class="flex items-center justify-between py-1 text-slate-300">
+            <span class="truncate pr-2">• ${item.name} <b class="text-sky-400">x${qty}</b></span>
+            <span class="font-bold text-white flex-none">${pStr}</span>
+          </div>
+        `;
+      }).join('');
+
+      // Format Total
+      let formattedPrice = `${sum.toLocaleString('ru-RU')} ₽`;
+      if (hasCustomPrice && sum > 0) formattedPrice += ' + договорная';
+      else if (hasCustomPrice && sum === 0) formattedPrice = 'По договорённости';
+
+      priceElem.innerText = formattedPrice;
+      countElem.innerText = `${totalQty} позиц. (${totalTime} мин)`;
+
+      // Step & Submit logic
+      const isComplete = totalQty > 0 && state.date && state.time;
+      submitBtn.disabled = !isComplete;
+
+      if (!state.date || !state.time) {
+        hintElem.innerText = 'Укажите дату и время';
+        document.getElementById('progressBar').style.width = '70%';
+        document.getElementById('stepTitle').innerText = 'Шаг 3 из 4: Дата и время';
+        document.getElementById('stepPercent').innerText = '70%';
+      } else {
+        const dObj = upcomingDates.find(d => d.iso === state.date);
+        hintElem.innerText = `${dObj?.dayNum} ${dObj?.monthName} в ${state.time}`;
+        document.getElementById('progressBar').style.width = '100%';
+        document.getElementById('stepTitle').innerText = 'Всё готово!';
+        document.getElementById('stepPercent').innerText = '100%';
+      }
+    }
+
+    function toggleCartDrawer() {
+      haptic('light');
+      const drawer = document.getElementById('cartDrawer');
+      const chevron = document.getElementById('drawerChevron');
+      const isHidden = drawer.classList.contains('hidden');
+
+      if (isHidden) {
+        drawer.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+      } else {
+        drawer.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+      }
+    }
+
+    // --- MODALS & SUBMISSION ---
+    function toggleInfoModal() {
+      haptic('light');
+      const modal = document.getElementById('infoModal');
+      modal.classList.toggle('hidden');
+      modal.classList.toggle('flex');
+    }
+
+    function submitBooking() {
+      haptic('success');
+      const cat = CONFIG.categories[state.catKey];
+      const carClass = cat.classes.find(c => c.id === state.carIndex)?.name || 'Стандарт';
+      const { sum, totalQty, totalTime, hasCustomPrice } = calculateTotal();
+
+      const itemsList = Object.entries(state.cart).map(([id, q]) => {
+        const item = cat.items.find(x => x.id === id);
+        return `• ${item.name} (${q} шт)`;
+      }).join('\n');
+
+      const dObj = upcomingDates.find(d => d.iso === state.date);
+
+      const payload = {
+        category: cat.title,
+        carClass: carClass,
+        services: state.cart,
+        master: state.master,
+        date: state.date,
+        time: state.time,
+        totalEstimate: document.getElementById('cartTotalPrice').innerText
+      };
+
+      // Populate Success Modal
+      document.getElementById('summaryCard').innerHTML = `
+        <div><b class="text-slate-400">Направление:</b> <span class="text-white">${cat.title} (${carClass})</span></div>
+        <div><b class="text-slate-400">Дата и время:</b> <span class="text-sky-400 font-bold">${dObj?.dayNum} ${dObj?.monthName} в ${state.time}</span></div>
+        <div><b class="text-slate-400">Мастер:</b> <span class="text-white">${state.master}</span></div>
+        <div class="pt-1.5 border-t border-slate-800 text-slate-300 whitespace-pre-line">${itemsList}</div>
+        <div class="pt-1.5 border-t border-slate-800 flex justify-between font-bold text-sm">
+          <span class="text-slate-400">Итого:</span>
+          <span class="text-sky-400">${payload.totalEstimate}</span>
+        </div>
+      `;
+
+      const successModal = document.getElementById('successModal');
+      successModal.classList.remove('hidden');
+      successModal.classList.add('flex');
+
+      // Send Data back to Telegram Bot if inside WebApp
+      if (tg && tg.sendData) {
+        tg.sendData(JSON.stringify(payload));
+      }
+    }
+
+    function closeSuccess() {
+      haptic('light');
+      document.getElementById('successModal').classList.add('hidden');
+      if (tg && tg.close) tg.close();
+    }
+
+    // Start App on load
+    window.onload = init;
+  </script>
+</body>
+</html>
